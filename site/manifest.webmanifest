@@ -1,0 +1,17 @@
+{
+  "name": "哈佛公报电台",
+  "short_name": "哈佛电台",
+  "description": "每天收听最新一期哈佛公报中英文电台。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f2e9",
+  "theme_color": "#f7f2e9",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
