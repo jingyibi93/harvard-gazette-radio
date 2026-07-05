@@ -14,8 +14,9 @@ on:
         type: boolean
         default: false
   schedule:
-    # 20:30 in Asia/Shanghai.
+    # 20:30 and 23:30 in Asia/Shanghai. The second run catches delayed newsletters.
     - cron: "30 12 * * *"
+    - cron: "30 15 * * *"
 
 permissions:
   contents: read
