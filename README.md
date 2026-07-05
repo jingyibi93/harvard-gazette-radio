@@ -30,7 +30,7 @@ Supabase Storage。
 
 首次部署时，在本机运行 `python3 scripts/configure_cloud.py`。脚本会从
 macOS 钥匙串读取已有的 163 与 Agnes 凭据，提示输入 Supabase Project
-URL 和 `service_role` key，然后把历史节目迁移到 Storage，并通过标准输入
+URL 和 `sb_secret_...` Secret Key，然后把历史节目迁移到 Storage，并通过标准输入
 写入 GitHub Secrets。密钥不会出现在命令参数、日志或仓库文件中。
 
 然后在 **Settings → Pages → Build and deployment** 中将 Source 设为

@@ -41,10 +41,16 @@ def api(
     headers = {"Content-Type": content_type}
     headers.update(extra_headers or {})
     if key:
-        headers.update({"Authorization": f"Bearer {key}", "apikey": key})
+        headers["apikey"] = key
+        if not key.startswith("sb_secret_"):
+            headers["Authorization"] = f"Bearer {key}"
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return response.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read(500).decode(errors="replace")
+        raise RuntimeError(f"Supabase returned HTTP {exc.code}: {detail}") from exc
 
 
 def public_url(base: str, path: str) -> str:
@@ -63,8 +69,8 @@ def ensure_bucket(base: str, key: str) -> None:
     ).encode()
     try:
         api(f"{base}/storage/v1/bucket", key=key, method="POST", data=body)
-    except urllib.error.HTTPError as exc:
-        if exc.code not in {400, 409}:
+    except RuntimeError as exc:
+        if "already exists" not in str(exc).casefold():
             raise
 
 
@@ -80,8 +86,8 @@ def local_files() -> list[str]:
 def remote_manifest(base: str) -> list[str]:
     try:
         raw = api(public_url(base, "manifest.json"))
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
+    except RuntimeError as exc:
+        if "HTTP 404" in str(exc):
             return []
         raise
     payload = json.loads(raw)

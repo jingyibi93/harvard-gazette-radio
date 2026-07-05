@@ -36,7 +36,7 @@ def set_secret(name: str, value: str) -> None:
 def main() -> int:
     print("密钥只会发送到 GitHub Secrets，不会显示或写入项目文件。")
     supabase_url = input("Supabase Project URL: ").strip().rstrip("/")
-    supabase_key = getpass.getpass("Supabase service_role key: ").strip()
+    supabase_key = getpass.getpass("Supabase Secret Key (sb_secret_...): ").strip()
     if not supabase_url.startswith("https://") or not supabase_key:
         raise RuntimeError("Supabase URL 或 service_role key 无效。")
 
@@ -56,6 +56,9 @@ def main() -> int:
     if not all(values.values()):
         raise RuntimeError("缺少必要的云端密钥。")
 
+    for name, value in values.items():
+        set_secret(name, value)
+        print(f"已设置 {name}")
     environment = os.environ.copy()
     environment.update(
         {
@@ -69,9 +72,6 @@ def main() -> int:
         env=environment,
         check=True,
     )
-    for name, value in values.items():
-        set_secret(name, value)
-        print(f"已设置 {name}")
     print("Supabase 初始节目迁移与 GitHub Secrets 配置完成。")
     return 0
 
