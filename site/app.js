@@ -6,6 +6,7 @@ const dataUrl = (path) => {
 };
 const splashScreen = document.querySelector("#splash-screen");
 const splashStartedAt = Date.now();
+let splashDismissed = false;
 const playButton = document.querySelector("#play-button");
 const progress = document.querySelector("#progress");
 const elapsed = document.querySelector("#elapsed");
@@ -25,6 +26,8 @@ let captionMotion = 1;
 let touchStartY = null;
 
 const dismissSplash = () => {
+  if (splashDismissed) return;
+  splashDismissed = true;
   const minimumDisplay = 900;
   const delay = Math.max(0, minimumDisplay - (Date.now() - splashStartedAt));
   window.setTimeout(() => {
@@ -245,7 +248,7 @@ const loadEpisode = async (path, shouldPlay = false) => {
   scripts.zh = "";
   scripts.en = "";
   renderEpisode();
-  await Promise.all([loadTranscript("zh"), loadTranscript("en")]);
+  Promise.allSettled([loadTranscript("zh"), loadTranscript("en")]);
   if (shouldPlay) audio.play();
 };
 
@@ -416,19 +419,25 @@ dialog.addEventListener("click", (event) => {
   if (event.target === dialog) dialog.close();
 });
 
-Promise.all([
-  fetch(dataUrl("./episodes/index.json"), { cache: "no-store" }).then((response) => response.json()),
-  loadEpisode("./episodes/latest.json"),
-])
-  .then(([items]) => {
-    archive = items;
-    renderArchive();
+loadEpisode("./episodes/latest.json")
+  .then(() => {
     applySettings();
     dismissSplash();
   })
   .catch(() => {
     document.querySelector("#episode-title").textContent = "今日节目暂时无法载入";
     dismissSplash();
+  });
+
+fetch(dataUrl("./episodes/index.json"), { cache: "no-store" })
+  .then((response) => response.json())
+  .then((items) => {
+    archive = items;
+    renderArchive();
+  })
+  .catch(() => {
+    archive = [];
+    renderArchive();
   });
 
 window.setTimeout(dismissSplash, 5000);
