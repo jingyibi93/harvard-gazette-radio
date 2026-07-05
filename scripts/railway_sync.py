@@ -36,6 +36,7 @@ def write_atomic(destination: Path, content: bytes) -> None:
     with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as handle:
         handle.write(content)
         temporary = Path(handle.name)
+    temporary.chmod(0o644)
     temporary.replace(destination)
 
 
