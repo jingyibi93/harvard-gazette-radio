@@ -87,7 +87,8 @@ def remote_manifest(base: str) -> list[str]:
     try:
         raw = api(public_url(base, "manifest.json"))
     except RuntimeError as exc:
-        if "HTTP 404" in str(exc):
+        detail = str(exc).casefold()
+        if "http 404" in detail or "object not found" in detail or '"statuscode":"404"' in detail:
             return []
         raise
     payload = json.loads(raw)
