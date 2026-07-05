@@ -25,6 +25,7 @@ let activeCueIndex = 0;
 let captionMotion = 1;
 let touchStartY = null;
 let lastLatestCheck = 0;
+let languageSwitchToken = 0;
 
 const updateMediaSession = () => {
   if (!("mediaSession" in navigator) || !window.MediaMetadata || !episode) return;
@@ -248,7 +249,12 @@ const renderEpisode = () => {
 };
 
 const setLanguage = (next) => {
+  if (next === language) return;
+  const switchToken = ++languageSwitchToken;
   const wasPlaying = !audio.paused;
+  const completion = Number.isFinite(audio.duration) && audio.duration > 0
+    ? audio.currentTime / audio.duration
+    : Number(progress.value) / 100;
   audio.pause();
   language = next;
   localStorage.setItem("harvard-radio-language", language);
@@ -257,7 +263,16 @@ const setLanguage = (next) => {
   });
   renderEpisode();
   loadTranscript(language);
-  if (wasPlaying) audio.play();
+  const restorePosition = () => {
+    if (switchToken !== languageSwitchToken) return;
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      audio.currentTime = Math.min(audio.duration - 0.01, Math.max(0, completion * audio.duration));
+    }
+    renderCaption();
+    if (wasPlaying) audio.play().catch(() => {});
+  };
+  if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) restorePosition();
+  else audio.addEventListener("loadedmetadata", restorePosition, { once: true });
 };
 
 const loadEpisode = async (path, shouldPlay = false) => {

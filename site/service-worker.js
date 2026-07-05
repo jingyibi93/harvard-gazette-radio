@@ -1,4 +1,4 @@
-const CACHE = "harvard-radio-v31";
+const CACHE = "harvard-radio-v32";
 const SHELL = [
   "./",
   "./index.html",
