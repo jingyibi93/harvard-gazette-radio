@@ -18,6 +18,13 @@ def relative(value: str) -> str:
 def main() -> int:
     episodes_dir = SITE / "episodes"
     index = json.loads((episodes_dir / "index.json").read_text(encoding="utf-8"))[:10]
+    if not index:
+        raise RuntimeError("Episode index is empty; refusing to publish a broken latest episode.")
+
+    latest_path = relative(str(index[0]["path"]))
+    latest_payload = (SITE / latest_path).read_text(encoding="utf-8")
+    (episodes_dir / "latest.json").write_text(latest_payload, encoding="utf-8")
+
     keep = {"episodes/index.json", "episodes/latest.json"}
     for item in index:
         path = relative(str(item["path"]))
