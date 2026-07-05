@@ -19,15 +19,32 @@ TITLES = {
     "https://hls.harvard.edu/today/america-unfinished-explores-the-state-of-the-nation-at-250/": "America Unfinished explores the state of the nation at 250",
     "https://news.harvard.edu/gazette/story/2026/06/ai-has-lots-of-people-digging-out-their-ipods/": "You take AI, I’ll take my iPod (if I can find it)",
 }
+PROGRAM_TITLES = {
+    "2026-06-24": "Covert Consciousness, Ebola, and the Truth About Exercise",
+    "2026-06-25": "Belonging, Unreliable Narratives, and Nutritional Balance",
+    "2026-06-30": "Parkinson’s, America Unfinished, and the Tech Backlash",
+    "2026-07-01": "Extreme Heat, Campus Memories, and the History of the Dollar",
+    "2026-07-02": "The Declaration in Print, a Nobel Laureate’s WNBA Assist, and the Evolution of Men’s Suits",
+}
 
 
 def main() -> int:
     changed = 0
     for path in sorted((SITE / "episodes").glob("*.json")):
-        if path.name in {"index.json", "latest.json"}:
+        if path.name == "index.json":
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
         dirty = False
+        identifier = path.stem if path.stem != "latest" else ""
+        if not identifier:
+            for candidate in PROGRAM_TITLES:
+                if candidate in str(payload.get("audio", {}).get("en", "")):
+                    identifier = candidate
+                    break
+        program_title = PROGRAM_TITLES.get(identifier)
+        if program_title and payload.get("title", {}).get("en") != program_title:
+            payload["title"]["en"] = program_title
+            dirty = True
         for story in payload.get("stories", []):
             title = TITLES.get(str(story.get("url", "")))
             if title and story.get("en") != title:
@@ -36,6 +53,21 @@ def main() -> int:
         if dirty:
             path.write_text(
                 json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            changed += 1
+    index_path = SITE / "episodes" / "index.json"
+    if index_path.is_file():
+        index_payload = json.loads(index_path.read_text(encoding="utf-8"))
+        dirty = False
+        for item in index_payload:
+            program_title = PROGRAM_TITLES.get(str(item.get("id", "")))
+            if program_title and item.get("title", {}).get("en") != program_title:
+                item["title"]["en"] = program_title
+                dirty = True
+        if dirty:
+            index_path.write_text(
+                json.dumps(index_payload, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
             changed += 1

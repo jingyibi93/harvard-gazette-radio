@@ -82,7 +82,6 @@ def main() -> int:
             brief,
             SITE,
             identifier,
-            english_title=str(item["subject"]),
             email_subject=str(item["subject"]),
             set_latest=True,
             update_index=True,

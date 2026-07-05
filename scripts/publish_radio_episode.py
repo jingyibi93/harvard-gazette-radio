@@ -110,6 +110,10 @@ def publish(
 ) -> dict:
     markdown = brief.read_text(encoding="utf-8")
     title_match = re.search(r"(?m)^#\s+(.+)$", markdown)
+    english_program_title_match = re.search(
+        r"(?mi)^\*\*English program title:\*\*\s*(.+?)\s*$",
+        markdown,
+    )
     date_match = re.search(
         r"\*\*(?:日期|Date)\s*[：:]\*\*\s*(.+)",
         markdown,
@@ -120,8 +124,10 @@ def publish(
     if not date_match:
         date_match = re.search(r"(20\d{2}[-/.]\d{1,2}[-/.]\d{1,2})", markdown)
     story_matches = extract_stories(markdown)
-    if not title_match or not date_match or not story_matches:
-        raise ValueError("The brief does not contain the expected title, date, and stories.")
+    if not title_match or not english_program_title_match or not date_match or not story_matches:
+        raise ValueError(
+            "The brief does not contain the expected paired program titles, date, and stories."
+        )
     if any(not english_title for _, english_title, _, _ in story_matches):
         raise ValueError("Every story must contain a matching English title.")
 
@@ -148,7 +154,7 @@ def publish(
         "date": date_match.group(1).strip(),
         "title": {
             "zh": title_match.group(1).replace("哈佛公报：", ""),
-            "en": english_title or title_match.group(1).replace("哈佛公报：", ""),
+            "en": english_program_title_match.group(1).strip(),
         },
         "stories": stories,
         "audio": {
