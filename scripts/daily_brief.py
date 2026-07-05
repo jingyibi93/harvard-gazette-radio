@@ -230,7 +230,9 @@ def call_agnes(packet: str) -> str:
    a line exactly formatted as `**日期：** YYYY年M月D日`;
 2. 今日头版: 3-5 bullets;
 3. 文章速读: exactly three items. Each item must start with `### 中文标题`,
-   followed by a concise Chinese headline of roughly 6-14 Chinese characters,
+   immediately followed by a line exactly formatted as
+   `**English title:** Original English article headline`, then a concise Chinese headline
+   of roughly 6-14 Chinese characters,
    a detailed 3-5 sentence summary grounded in
    the linked source page when available, why it matters, and a final source line
    exactly formatted as `**来源：** [Publisher](https://matching-final-url)`;
@@ -242,6 +244,8 @@ def call_agnes(packet: str) -> str:
  Do not read URLs aloud. Keep factual claims grounded in the supplied email or linked-page text.
 For every article, use only the matching “Linked page final URL” as its source link.
 Match links by the linked page title and text; never shift, reuse, or guess an adjacent article URL.
+The English title must be the headline of that same linked article. Never use the publisher
+name, `Source`, `来源`, or `来源链接` as an English title.
 Open directly with the day's subject and a welcoming line. Never say “我是主持人”,
 “我是您的主持人”, “我是助手”, “I am your host”, or introduce a fictional presenter.
 Do not write stage directions for music; music is added during audio production.

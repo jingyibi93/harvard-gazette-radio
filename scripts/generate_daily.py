@@ -51,6 +51,9 @@ def validate_episode(identifier: str) -> None:
         image = str(story.get("image", ""))
         if not url.startswith("https://") or "?" in url or "#" in url:
             raise RuntimeError(f"Refusing to publish: story {index} has an unsafe source URL.")
+        english_title = str(story.get("en", "")).strip().casefold()
+        if english_title in {"source", "source link", "来源", "来源链接"}:
+            raise RuntimeError(f"Refusing to publish: story {index} has no valid English title.")
         if not image:
             raise RuntimeError(f"Refusing to publish: story {index} has no verified cover image.")
         image_path = SITE / image.removeprefix("./")

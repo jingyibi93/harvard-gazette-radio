@@ -52,9 +52,9 @@ def spoken(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def extract_stories(markdown: str) -> list[tuple[str, str, str]]:
+def extract_stories(markdown: str) -> list[tuple[str, str, str, str]]:
     lines = markdown.splitlines()
-    stories: list[tuple[str, str, str]] = []
+    stories: list[tuple[str, str, str, str]] = []
     labeled_source = re.compile(
         r"(?:\*\*)?(?:来源|Source)\s*[：:]\s*(?:\*\*)?\s*"
         r"\[([^\]]+)\]\((https?://[^)]+)\)",
@@ -69,7 +69,15 @@ def extract_stories(markdown: str) -> list[tuple[str, str, str]]:
         if not source:
             continue
         title = ""
+        english_title = ""
         for candidate in reversed(lines[max(0, index - 8):index]):
+            english = re.match(
+                r"^(?:\*\*)?(?:English title|英文标题)\s*[：:]\s*(?:\*\*)?\s*(.+?)\s*$",
+                candidate,
+                re.IGNORECASE,
+            )
+            if english and not english_title:
+                english_title = english.group(1).strip().strip("*").strip()
             heading = re.match(r"^###\s+(?:\d+\.\s+)?(.+?)\s*$", candidate)
             bold = re.match(
                 r"^\*\*(?!(?:为何重要|来源|Why it matters|Source))(.+?)\*\*\s*$",
@@ -81,7 +89,7 @@ def extract_stories(markdown: str) -> list[tuple[str, str, str]]:
                 title = match.group(1).strip()
                 break
         if title:
-            stories.append((title, source.group(1), source.group(2)))
+            stories.append((title, english_title, source.group(1), source.group(2)))
     return stories[:3]
 
 
@@ -114,6 +122,8 @@ def publish(
     story_matches = extract_stories(markdown)
     if not title_match or not date_match or not story_matches:
         raise ValueError("The brief does not contain the expected title, date, and stories.")
+    if any(not english_title for _, english_title, _, _ in story_matches):
+        raise ValueError("Every story must contain a matching English title.")
 
     zh = spoken(section(markdown, "中文电台 Broadcast", "English Radio Broadcast"))
     en = spoken(section(markdown, "English Radio Broadcast"))
@@ -125,8 +135,13 @@ def publish(
     (audio_dir / f"{episode_id}-en.txt").write_text(en + "\n", encoding="utf-8")
 
     stories = [
-        {"zh": title, "en": source, "source": source, "url": public_url(url)}
-        for title, source, url in story_matches[:3]
+        {
+            "zh": title,
+            "en": english_title,
+            "source": source,
+            "url": public_url(url),
+        }
+        for title, english_title, source, url in story_matches[:3]
     ]
     audio_version = re.sub(r"\D", "", date_match.group(1)) or "latest"
     payload = {

@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: false
+      repair_only:
+        description: Repair existing public episode metadata without generating a new episode
+        required: false
+        type: boolean
+        default: false
   schedule:
     # 20:30 in Asia/Shanghai.
     - cron: "30 12 * * *"
@@ -52,7 +57,10 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python scripts/supabase_storage.py download
-          if [ "${{ inputs.backfill || false }}" = "true" ]; then
+          python scripts/repair_story_titles.py
+          if [ "${{ inputs.repair_only || false }}" = "true" ]; then
+            echo "Repair-only run: keeping the current latest episode."
+          elif [ "${{ inputs.backfill || false }}" = "true" ]; then
             python scripts/backfill_history.py
           else
             python scripts/generate_daily.py
