@@ -24,6 +24,7 @@ const scripts = { zh: "", en: "" };
 let activeCueIndex = 0;
 let captionMotion = 1;
 let touchStartY = null;
+let lastLatestCheck = 0;
 
 const dismissSplash = () => {
   if (splashDismissed) return;
@@ -421,6 +422,7 @@ dialog.addEventListener("click", (event) => {
 
 loadEpisode("./episodes/latest.json")
   .then(() => {
+    lastLatestCheck = Date.now();
     applySettings();
     dismissSplash();
   })
@@ -439,6 +441,25 @@ fetch(dataUrl("./episodes/index.json"), { cache: "no-store" })
     archive = [];
     renderArchive();
   });
+
+const refreshLatestEpisode = async () => {
+  if (document.hidden || !audio.paused || Date.now() - lastLatestCheck < 5 * 60 * 1000) return;
+  lastLatestCheck = Date.now();
+  try {
+    const response = await fetch(dataUrl("./episodes/latest.json"), { cache: "no-store" });
+    if (!response.ok) return;
+    const latest = await response.json();
+    const currentVersion = `${episode?.date || ""}|${episode?.audio?.zh || ""}`;
+    const latestVersion = `${latest?.date || ""}|${latest?.audio?.zh || ""}`;
+    if (latestVersion !== currentVersion) {
+      await loadEpisode("./episodes/latest.json");
+    }
+  } catch {
+    // Keep the last playable episode when a background refresh temporarily fails.
+  }
+};
+
+document.addEventListener("visibilitychange", refreshLatestEpisode);
 
 window.setTimeout(dismissSplash, 5000);
 
