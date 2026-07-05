@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 import daily_brief
 import publish_radio_episode
+import retention
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,9 +40,8 @@ def episode_id(item: dict[str, object]) -> str:
 def trim_archive() -> None:
     path = SITE / "episodes" / "index.json"
     items = json.loads(path.read_text(encoding="utf-8"))
-    items.sort(key=lambda item: item["id"], reverse=True)
     path.write_text(
-        json.dumps(items[:10], ensure_ascii=False, indent=2) + "\n",
+        json.dumps(retention.recent_episodes(items), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Keep only files referenced by the latest ten public episodes."""
+"""Keep only files referenced by episodes in the latest ten-day window."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+
+import retention
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -17,9 +19,14 @@ def relative(value: str) -> str:
 
 def main() -> int:
     episodes_dir = SITE / "episodes"
-    index = json.loads((episodes_dir / "index.json").read_text(encoding="utf-8"))[:10]
+    index_path = episodes_dir / "index.json"
+    index = retention.recent_episodes(json.loads(index_path.read_text(encoding="utf-8")))
     if not index:
         raise RuntimeError("Episode index is empty; refusing to publish a broken latest episode.")
+    index_path.write_text(
+        json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     latest_path = relative(str(index[0]["path"]))
     latest_payload = (SITE / latest_path).read_text(encoding="utf-8")
