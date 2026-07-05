@@ -55,7 +55,11 @@ def spoken(text: str) -> str:
 def extract_stories(markdown: str) -> list[tuple[str, str, str]]:
     lines = markdown.splitlines()
     stories: list[tuple[str, str, str]] = []
-    labeled_source = re.compile(r"\*\*来源：\*\*\s+\[([^\]]+)\]\((https?://[^)]+)\)")
+    labeled_source = re.compile(
+        r"(?:\*\*)?(?:来源|Source)\s*[：:]\s*(?:\*\*)?\s*"
+        r"\[([^\]]+)\]\((https?://[^)]+)\)",
+        re.IGNORECASE,
+    )
     source_link = re.compile(
         r"\[([^\]]*(?:来源|Source)[^\]]*)\]\((https?://[^)]+)\)",
         re.IGNORECASE,
@@ -67,7 +71,11 @@ def extract_stories(markdown: str) -> list[tuple[str, str, str]]:
         title = ""
         for candidate in reversed(lines[max(0, index - 8):index]):
             heading = re.match(r"^###\s+(?:\d+\.\s+)?(.+?)\s*$", candidate)
-            bold = re.match(r"^\*\*(?!为何重要|来源)(.+?)\*\*\s*$", candidate)
+            bold = re.match(
+                r"^\*\*(?!(?:为何重要|来源|Why it matters|Source))(.+?)\*\*\s*$",
+                candidate,
+                re.IGNORECASE,
+            )
             match = heading or bold
             if match:
                 title = match.group(1).strip()
@@ -94,9 +102,15 @@ def publish(
 ) -> dict:
     markdown = brief.read_text(encoding="utf-8")
     title_match = re.search(r"(?m)^#\s+(.+)$", markdown)
-    date_match = re.search(r"\*\*日期：\*\*\s*(.+)", markdown)
+    date_match = re.search(
+        r"\*\*(?:日期|Date)\s*[：:]\*\*\s*(.+)",
+        markdown,
+        re.IGNORECASE,
+    )
     if not date_match and title_match:
         date_match = re.search(r"(20\d{2}年\d{1,2}月\d{1,2}日)", title_match.group(1))
+    if not date_match:
+        date_match = re.search(r"(20\d{2}[-/.]\d{1,2}[-/.]\d{1,2})", markdown)
     story_matches = extract_stories(markdown)
     if not title_match or not date_match or not story_matches:
         raise ValueError("The brief does not contain the expected title, date, and stories.")

@@ -226,11 +226,14 @@ def call_agnes(packet: str) -> str:
         "summary from interpretation. Do not reproduce long passages. Preserve useful source URLs."
     )
     prompt = """Turn the supplied Harvard Gazette newsletter and linked article material into Markdown with:
-1. a short, topic-driven title (not merely a date or “special edition”) and date;
+1. a short, topic-driven H1 title (not merely a date or “special edition”), followed by
+   a line exactly formatted as `**日期：** YYYY年M月D日`;
 2. 今日头版: 3-5 bullets;
-3. 文章速读: each item has a concise Chinese headline of roughly 6-14 Chinese characters,
+3. 文章速读: exactly three items. Each item must start with `### 中文标题`,
+   followed by a concise Chinese headline of roughly 6-14 Chinese characters,
    a detailed 3-5 sentence summary grounded in
-   the linked source page when available, why it matters, and source URL;
+   the linked source page when available, why it matters, and a final source line
+   exactly formatted as `**来源：** [Publisher](https://matching-final-url)`;
 4. 值得留意: themes and uncertainties;
 5. 中文电台 Broadcast: a warm, natural 4-6 minute Chinese spoken script with opening,
    transitions, pronunciation-friendly wording, and closing;
