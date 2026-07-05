@@ -25,7 +25,7 @@ def main() -> int:
         payload = json.loads((SITE / path).read_text(encoding="utf-8"))
         for story in payload.get("stories", []):
             if story.get("image"):
-                keep.add(relative(str(story["image"])))
+                keep.add(relative(str(story["image"])).split("?", 1)[0])
         for value in payload.get("audio", {}).values():
             keep.add(relative(str(value)).split("?", 1)[0])
         for transcript in payload.get("transcript", {}).values():
