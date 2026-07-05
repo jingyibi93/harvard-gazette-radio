@@ -26,9 +26,20 @@ def main() -> int:
         key=lambda item: parsedate_to_datetime(str(item["date"])),
         reverse=True,
     )
+    index_path = SITE / "episodes" / "index.json"
+    existing_index = json.loads(index_path.read_text(encoding="utf-8")) if index_path.is_file() else []
+    published_subjects = {
+        str(entry.get("emailSubject", "")).strip()
+        for entry in existing_index
+        if entry.get("emailSubject")
+    }
     seen: set[str] = set()
     for item in messages:
-        identifier = parsedate_to_datetime(str(item["date"])).date().isoformat()
+        subject = str(item["subject"]).strip()
+        if subject in published_subjects:
+            print(f"Newsletter already exists in history; skipping: {subject}")
+            continue
+        identifier = generate_daily.episode_id(item)
         if identifier in seen:
             continue
         seen.add(identifier)
@@ -39,7 +50,10 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix=f"harvard-radio-{identifier}-") as temp_dir:
             brief = Path(temp_dir) / f"{identifier}.md"
             packet = daily_brief.source_packet([item], True)
-            brief.write_text(daily_brief.call_agnes(packet) + "\n", encoding="utf-8")
+            brief.write_text(
+                daily_brief.call_agnes(packet, broadcast_date=identifier) + "\n",
+                encoding="utf-8",
+            )
             publish_radio_episode.publish(
                 brief,
                 SITE,
@@ -72,6 +86,7 @@ def main() -> int:
                 check=True,
             )
         generate_daily.validate_episode(identifier)
+        published_subjects.add(subject)
         print(f"Backfilled and validated episode {identifier}.")
     generate_daily.trim_archive()
     index = json.loads((SITE / "episodes" / "index.json").read_text(encoding="utf-8"))

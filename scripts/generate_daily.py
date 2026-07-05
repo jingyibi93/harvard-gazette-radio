@@ -7,8 +7,10 @@ import json
 import subprocess
 import sys
 import tempfile
+import datetime as dt
 from email.utils import parsedate_to_datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import daily_brief
 import publish_radio_episode
@@ -27,7 +29,11 @@ def newest_message() -> dict[str, object]:
 
 
 def episode_id(item: dict[str, object]) -> str:
-    return parsedate_to_datetime(str(item["date"])).date().isoformat()
+    received = parsedate_to_datetime(str(item["date"]))
+    if received.tzinfo is None:
+        received = received.replace(tzinfo=ZoneInfo("America/New_York"))
+    beijing_date = received.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    return (beijing_date + dt.timedelta(days=1)).isoformat()
 
 
 def trim_archive() -> None:
@@ -69,6 +75,22 @@ def validate_episode(identifier: str) -> None:
 def main() -> int:
     item = newest_message()
     identifier = episode_id(item)
+    index_path = SITE / "episodes" / "index.json"
+    archive = json.loads(index_path.read_text(encoding="utf-8")) if index_path.is_file() else []
+    duplicate = next(
+        (
+            entry
+            for entry in archive
+            if str(entry.get("emailSubject", "")).strip() == str(item["subject"]).strip()
+        ),
+        None,
+    )
+    if duplicate:
+        print(
+            f"Newsletter is already published as episode {duplicate.get('id')}; "
+            "keeping the published version."
+        )
+        return 0
     existing = SITE / "episodes" / f"{identifier}.json"
     if existing.exists():
         print(f"Episode {identifier} already exists; keeping the published version.")
@@ -77,7 +99,10 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="harvard-radio-") as temp_dir:
         brief = Path(temp_dir) / f"{identifier}.md"
         packet = daily_brief.source_packet([item], True)
-        brief.write_text(daily_brief.call_agnes(packet) + "\n", encoding="utf-8")
+        brief.write_text(
+            daily_brief.call_agnes(packet, broadcast_date=identifier) + "\n",
+            encoding="utf-8",
+        )
         publish_radio_episode.publish(
             brief,
             SITE,

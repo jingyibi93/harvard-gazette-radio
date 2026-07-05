@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import re
 import urllib.parse
@@ -99,6 +100,14 @@ def public_url(url: str) -> str:
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
 
 
+def edition_date(episode_id: str, fallback: str) -> str:
+    try:
+        value = dt.date.fromisoformat(episode_id)
+        return f"{value.year}年{value.month}月{value.day}日"
+    except ValueError:
+        return fallback.strip()
+
+
 def publish(
     brief: Path,
     radio_dir: Path,
@@ -149,9 +158,10 @@ def publish(
         }
         for title, english_title, source, url in story_matches[:3]
     ]
-    audio_version = re.sub(r"\D", "", date_match.group(1)) or "latest"
+    display_date = edition_date(episode_id, date_match.group(1))
+    audio_version = re.sub(r"\D", "", episode_id) or re.sub(r"\D", "", display_date) or "latest"
     payload = {
-        "date": date_match.group(1).strip(),
+        "date": display_date,
         "title": {
             "zh": title_match.group(1).replace("哈佛公报：", ""),
             "en": english_program_title_match.group(1).strip(),
