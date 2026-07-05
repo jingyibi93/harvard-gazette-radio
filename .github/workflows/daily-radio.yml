@@ -2,6 +2,12 @@ name: Daily Harvard Gazette Radio
 
 on:
   workflow_dispatch:
+    inputs:
+      backfill:
+        description: Rebuild missing episodes from the last ten days
+        required: false
+        type: boolean
+        default: false
   schedule:
     # 20:30 in Asia/Shanghai.
     - cron: "30 12 * * *"
@@ -46,7 +52,11 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python scripts/supabase_storage.py download
-          python scripts/generate_daily.py
+          if [ "${{ inputs.backfill || false }}" = "true" ]; then
+            python scripts/backfill_history.py
+          else
+            python scripts/generate_daily.py
+          fi
           python scripts/sanitize_site.py
           python scripts/prune_public_data.py
           python scripts/supabase_storage.py upload
