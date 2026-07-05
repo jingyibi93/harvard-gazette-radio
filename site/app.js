@@ -26,6 +26,27 @@ let captionMotion = 1;
 let touchStartY = null;
 let lastLatestCheck = 0;
 
+const updateMediaSession = () => {
+  if (!("mediaSession" in navigator) || !window.MediaMetadata || !episode) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: episode.title[language],
+    artist: language === "zh" ? "哈佛公报电台" : "Harvard Gazette Radio",
+    album: episode.date,
+    artwork: [
+      {
+        src: new URL("./icon-192.png", window.location.href).href,
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: new URL("./icon-512.png", window.location.href).href,
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+  });
+};
+
 const dismissSplash = () => {
   if (splashDismissed) return;
   splashDismissed = true;
@@ -219,6 +240,7 @@ const renderEpisode = () => {
     }),
   );
   audio.src = dataUrl(episode.audio[language]);
+  updateMediaSession();
   audio.playbackRate = playbackSpeed;
   playButton.classList.remove("playing");
   playButton.setAttribute("aria-label", language === "zh" ? "播放" : "Play");
@@ -358,6 +380,17 @@ document.querySelector("#back-button").addEventListener("click", () => {
 document.querySelector("#forward-button").addEventListener("click", () => {
   audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 15);
 });
+
+if ("mediaSession" in navigator) {
+  navigator.mediaSession.setActionHandler("play", () => audio.play());
+  navigator.mediaSession.setActionHandler("pause", () => audio.pause());
+  navigator.mediaSession.setActionHandler("seekbackward", () => {
+    audio.currentTime = Math.max(0, audio.currentTime - 15);
+  });
+  navigator.mediaSession.setActionHandler("seekforward", () => {
+    audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 15);
+  });
+}
 
 languageButtons.forEach((button) => {
   button.addEventListener("click", () => {

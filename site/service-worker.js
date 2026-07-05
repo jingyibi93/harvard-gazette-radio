@@ -1,4 +1,4 @@
-const CACHE = "harvard-radio-v30";
+const CACHE = "harvard-radio-v31";
 const SHELL = [
   "./",
   "./index.html",
@@ -7,7 +7,9 @@ const SHELL = [
   "./runtime-config.js",
   "./app.js",
   "./manifest.webmanifest",
-  "./icon.svg",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (event) => {
