@@ -19,6 +19,7 @@ let language = localStorage.getItem("harvard-radio-language") || "zh";
 let playbackSpeed = Number(localStorage.getItem("harvard-radio-speed") || "1");
 let captionSize = localStorage.getItem("harvard-radio-caption-size") || "standard";
 let autoplayNext = localStorage.getItem("harvard-radio-autoplay") === "true";
+let loopArchive = localStorage.getItem("harvard-radio-loop") === "true";
 const transcripts = { zh: [], en: [] };
 const scripts = { zh: "", en: "" };
 let activeCueIndex = 0;
@@ -300,7 +301,8 @@ const nextArchiveItem = () => {
   if (!archive.length) return null;
   let current = archive.findIndex((item) => item.path === currentEpisodePath);
   if (current < 0 && currentEpisodePath === "./episodes/latest.json") current = 0;
-  return current >= 0 ? archive[current + 1] || null : null;
+  if (current < 0) return null;
+  return archive[current + 1] || (loopArchive ? archive[0] : null);
 };
 
 const playNextEpisode = async () => {
@@ -375,6 +377,7 @@ const applySettings = () => {
   document.querySelector("#setting-speed").value = String(playbackSpeed);
   document.querySelector("#setting-caption-size").value = captionSize;
   document.querySelector("#setting-autoplay").checked = autoplayNext;
+  document.querySelector("#setting-loop").checked = loopArchive;
 };
 
 playButton.addEventListener("click", () => {
@@ -464,6 +467,11 @@ document.querySelector("#setting-caption-size").addEventListener("change", (even
 document.querySelector("#setting-autoplay").addEventListener("change", (event) => {
   autoplayNext = event.target.checked;
   localStorage.setItem("harvard-radio-autoplay", String(autoplayNext));
+});
+
+document.querySelector("#setting-loop").addEventListener("change", (event) => {
+  loopArchive = event.target.checked;
+  localStorage.setItem("harvard-radio-loop", String(loopArchive));
 });
 
 const captionTrack = document.querySelector("#live-caption");
