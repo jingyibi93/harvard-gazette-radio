@@ -3,14 +3,70 @@
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
 EPISODES = ROOT / "site" / "episodes"
 POLICY = "next-beijing-morning"
+SCRIPT_POLICY = "next-beijing-morning-spoken-date"
+SCRIPT_REPLACEMENTS = {
+    "2026-06-25": {
+        "zh": (
+            "今天是2026年6月24日，星期三。",
+            "今天是2026年6月25日，星期四。",
+        ),
+        "en": (
+            "today, June 24th, 2026.",
+            "today, Thursday, June 25th, 2026.",
+        ),
+    },
+    "2026-06-26": {
+        "zh": (
+            "大家好，欢迎收听今天的哈佛公报精选。",
+            "大家好，欢迎收听今天的哈佛公报精选。今天是2026年6月26日，星期五。",
+        ),
+        "en": (
+            "Welcome to today’s Harvard Gazette briefing.",
+            "Welcome to today’s Harvard Gazette briefing. It is Friday, June 26th, 2026.",
+        ),
+    },
+    "2026-07-01": {
+        "zh": (
+            "今天是2026年6月30日，星期二。",
+            "今天是2026年7月1日，星期三。",
+        ),
+        "en": (
+            "It is Tuesday, June 30th, 2026.",
+            "It is Wednesday, July 1st, 2026.",
+        ),
+    },
+    "2026-07-02": {
+        "zh": (
+            "今天是2026年7月1日，星期三。",
+            "今天是2026年7月2日，星期四。",
+        ),
+        "en": (
+            "today, July 1st, 2026.",
+            "today, Thursday, July 2nd, 2026.",
+        ),
+    },
+    "2026-07-03": {
+        "zh": (
+            "今天是2026年7月2日，星期四。",
+            "今天是2026年7月3日，星期五。",
+        ),
+        "en": (
+            "It is Thursday, July 2nd, 2026.",
+            "It is Friday, July 3rd, 2026.",
+        ),
+    },
+}
 
 
 def display_date(identifier: str) -> str:
@@ -18,7 +74,42 @@ def display_date(identifier: str) -> str:
     return f"{value.year}年{value.month}月{value.day}日"
 
 
+def update_spoken_dates(payload: dict, identifier: str) -> str | None:
+    if payload.get("scriptDatePolicy") == SCRIPT_POLICY:
+        return None
+    replacements = SCRIPT_REPLACEMENTS.get(identifier)
+    if not replacements:
+        return None
+    episode_stem = ""
+    for language in ("zh", "en"):
+        relative = str(payload["transcript"][language]["text"]).removeprefix("./")
+        text_path = ROOT / "site" / relative
+        text = text_path.read_text(encoding="utf-8")
+        old, new = replacements[language]
+        if old not in text:
+            if new not in text:
+                raise RuntimeError(
+                    f"Could not find the legacy {language} spoken date in {text_path.name}."
+                )
+        else:
+            text_path.write_text(text.replace(old, new, 1), encoding="utf-8")
+        suffix = f"-{language}.txt"
+        stem = text_path.name.removesuffix(suffix)
+        if episode_stem and stem != episode_stem:
+            raise RuntimeError(f"Mismatched transcript stems for episode {identifier}.")
+        episode_stem = stem
+    payload["scriptDatePolicy"] = SCRIPT_POLICY
+    return episode_stem
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--rerender",
+        action="store_true",
+        help="Regenerate audio and subtitles after spoken dates are updated.",
+    )
+    args = parser.parse_args()
     index_path = EPISODES / "index.json"
     if not index_path.is_file():
         print("No episode index found; nothing to migrate.")
@@ -26,6 +117,7 @@ def main() -> int:
 
     index = json.loads(index_path.read_text(encoding="utf-8"))
     migrated: list[tuple[dict, dict, Path, Path]] = []
+    rerender: set[str] = set()
     changed = 0
     for item in index:
         source_path = ROOT / "site" / str(item["path"]).removeprefix("./")
@@ -38,6 +130,9 @@ def main() -> int:
             changed += 1
         payload["date"] = display_date(new_id)
         payload["datePolicy"] = POLICY
+        episode_stem = update_spoken_dates(payload, new_id)
+        if episode_stem:
+            rerender.add(episode_stem)
         migrated_item = {
             **item,
             "id": new_id,
@@ -68,6 +163,23 @@ def main() -> int:
         (EPISODES / "latest.json").write_text(
             json.dumps(latest_payload, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
+        )
+    if rerender and not args.rerender:
+        print(
+            f"Updated spoken dates for {len(rerender)} episodes without rendering audio."
+        )
+    for episode_stem in sorted(rerender) if args.rerender else []:
+        subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "render_radio_audio.py"),
+                str(ROOT / "site"),
+                "--episode-id",
+                episode_stem,
+                "--music",
+                str(ROOT / "assets" / "music" / "window-on-the-world.mp3"),
+            ],
+            check=True,
         )
     print(f"Migrated {changed} legacy episodes to the next Beijing morning.")
     return 0
