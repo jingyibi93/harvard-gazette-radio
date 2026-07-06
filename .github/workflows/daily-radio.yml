@@ -58,6 +58,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python scripts/supabase_storage.py download
+          python scripts/migrate_episode_dates.py
           python scripts/repair_story_titles.py
           if [ "${{ inputs.repair_only || false }}" = "true" ]; then
             echo "Repair-only run: keeping the current latest episode."
