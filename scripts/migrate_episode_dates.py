@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 EPISODES = ROOT / "site" / "episodes"
 POLICY = "next-beijing-morning"
 SCRIPT_POLICY = "next-beijing-morning-spoken-date"
+ASSET_POLICY = "spoken-date-assets-v1"
 SCRIPT_REPLACEMENTS = {
     "2026-06-25": {
         "zh": (
@@ -102,6 +103,17 @@ def update_spoken_dates(payload: dict, identifier: str) -> str | None:
     return episode_stem
 
 
+def version_spoken_assets(payload: dict) -> None:
+    if payload.get("assetVersionPolicy") == ASSET_POLICY:
+        return
+    for language, value in payload.get("audio", {}).items():
+        payload["audio"][language] = f"{str(value).split('?', 1)[0]}?v={ASSET_POLICY}"
+    for transcript in payload.get("transcript", {}).values():
+        for kind in ("srt", "text"):
+            transcript[kind] = f"{str(transcript[kind]).split('?', 1)[0]}?v={ASSET_POLICY}"
+    payload["assetVersionPolicy"] = ASSET_POLICY
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -131,6 +143,7 @@ def main() -> int:
         payload["date"] = display_date(new_id)
         payload["datePolicy"] = POLICY
         episode_stem = update_spoken_dates(payload, new_id)
+        version_spoken_assets(payload)
         if episode_stem:
             rerender.add(episode_stem)
         migrated_item = {

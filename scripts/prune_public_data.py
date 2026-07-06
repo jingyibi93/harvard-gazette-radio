@@ -43,8 +43,8 @@ def main() -> int:
         for value in payload.get("audio", {}).values():
             keep.add(relative(str(value)).split("?", 1)[0])
         for transcript in payload.get("transcript", {}).values():
-            keep.add(relative(str(transcript["srt"])))
-            keep.add(relative(str(transcript["text"])))
+            keep.add(relative(str(transcript["srt"])).split("?", 1)[0])
+            keep.add(relative(str(transcript["text"])).split("?", 1)[0])
     for prefix in ("episodes", "audio", "images"):
         for path in (SITE / prefix).glob("*"):
             if path.is_file() and path.relative_to(SITE).as_posix() not in keep:
