@@ -26,6 +26,7 @@ let captionMotion = 1;
 let touchStartY = null;
 let lastLatestCheck = 0;
 let languageSwitchToken = 0;
+let advancingEpisode = false;
 
 const updateMediaSession = () => {
   if (!("mediaSession" in navigator) || !window.MediaMetadata || !episode) return;
@@ -285,9 +286,33 @@ const loadEpisode = async (path, shouldPlay = false) => {
   transcripts.en = [];
   scripts.zh = "";
   scripts.en = "";
+  audio.autoplay = shouldPlay;
   renderEpisode();
   Promise.allSettled([loadTranscript("zh"), loadTranscript("en")]);
-  if (shouldPlay) audio.play();
+  if (shouldPlay) {
+    audio.play().catch(() => {
+      audio.addEventListener("canplay", () => audio.play().catch(() => {}), { once: true });
+    });
+  }
+};
+
+const nextArchiveItem = () => {
+  if (!archive.length) return null;
+  let current = archive.findIndex((item) => item.path === currentEpisodePath);
+  if (current < 0 && currentEpisodePath === "./episodes/latest.json") current = 0;
+  return current >= 0 ? archive[current + 1] || null : null;
+};
+
+const playNextEpisode = async () => {
+  if (advancingEpisode) return;
+  const next = nextArchiveItem();
+  if (!next) return;
+  advancingEpisode = true;
+  try {
+    await loadEpisode(next.path, true);
+  } finally {
+    advancingEpisode = false;
+  }
 };
 
 const showView = (target) => {
@@ -379,9 +404,7 @@ audio.addEventListener("timeupdate", () => {
 
 audio.addEventListener("ended", async () => {
   if (!autoplayNext) return;
-  const current = archive.findIndex((item) => item.path === currentEpisodePath);
-  const next = archive[current + 1];
-  if (next) await loadEpisode(next.path, true);
+  await playNextEpisode();
 });
 
 progress.addEventListener("input", () => {
@@ -404,6 +427,9 @@ if ("mediaSession" in navigator) {
   });
   navigator.mediaSession.setActionHandler("seekforward", () => {
     audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 15);
+  });
+  navigator.mediaSession.setActionHandler("nexttrack", () => {
+    playNextEpisode();
   });
 }
 
