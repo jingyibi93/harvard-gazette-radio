@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
@@ -20,12 +21,25 @@ TITLES = {
     "https://news.harvard.edu/gazette/story/2026/06/ai-has-lots-of-people-digging-out-their-ipods/": "You take AI, I’ll take my iPod (if I can find it)",
 }
 PROGRAM_TITLES = {
-    "2026-06-24": "Covert Consciousness, Ebola, and the Truth About Exercise",
-    "2026-06-25": "Belonging, Unreliable Narratives, and Nutritional Balance",
-    "2026-06-30": "Parkinson’s, America Unfinished, and the Tech Backlash",
-    "2026-07-01": "Extreme Heat, Campus Memories, and the History of the Dollar",
-    "2026-07-02": "The Declaration in Print, a Nobel Laureate’s WNBA Assist, and the Evolution of Men’s Suits",
+    "2026-06-25": "Covert Consciousness, Ebola, and the Truth About Exercise",
+    "2026-06-26": "Belonging, Unreliable Narratives, and Nutritional Balance",
+    "2026-07-01": "Parkinson’s, America Unfinished, and the Tech Backlash",
+    "2026-07-02": "Extreme Heat, Campus Memories, and the History of the Dollar",
+    "2026-07-03": "The Declaration in Print, a Nobel Laureate’s WNBA Assist, and the Evolution of Men’s Suits",
 }
+
+
+def episode_identifier(path: Path, payload: dict) -> str:
+    if path.stem != "latest":
+        return path.stem
+    match = re.fullmatch(
+        r"(\d{4})年(\d{1,2})月(\d{1,2})日",
+        str(payload.get("date", "")).strip(),
+    )
+    if not match:
+        return ""
+    year, month, day = (int(value) for value in match.groups())
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 
 def main() -> int:
@@ -35,12 +49,7 @@ def main() -> int:
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
         dirty = False
-        identifier = path.stem if path.stem != "latest" else ""
-        if not identifier:
-            for candidate in PROGRAM_TITLES:
-                if candidate in str(payload.get("audio", {}).get("en", "")):
-                    identifier = candidate
-                    break
+        identifier = episode_identifier(path, payload)
         program_title = PROGRAM_TITLES.get(identifier)
         if program_title and payload.get("title", {}).get("en") != program_title:
             payload["title"]["en"] = program_title
