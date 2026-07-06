@@ -8,8 +8,3 @@ tmp/
 site/audio/
 site/images/
 site/episodes/
-
-# Tencent Cloud EdgeOne
-.env
-.edgeone/*
-.tef_dist/*

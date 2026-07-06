@@ -3,11 +3,7 @@
 一个可安装的双语 PWA。GitHub Actions 每天从 163 邮箱以只读 IMAP
 方式读取最新 Harvard Gazette 邮件，抓取来源页面，生成中英文节目、
 字幕、封面和音频。Vercel 托管 PWA 外壳并代理媒体请求，节目数据存放在
-Supabase Storage；GitHub Pages 保留为备用入口。
-
-项目也包含 Railway 部署配置。Railway 服务会把 Supabase 中已经生成的
-节目同步到新加坡实例的本地缓存，再从同一个域名提供页面、图片、字幕和
-支持 Range 请求的音频，便于比较国内手机端的实际加载速度。
+Supabase Storage。
 
 ## 安全设计
 
@@ -39,7 +35,6 @@ macOS 钥匙串读取已有的 163 与 Agnes 凭据，提示输入 Supabase Proj
 URL 和 `sb_secret_...` Secret Key，然后把历史节目迁移到 Storage，并通过标准输入
 写入 GitHub Secrets。密钥不会出现在命令参数、日志或仓库文件中。
 
-然后在 **Settings → Pages → Build and deployment** 中将 Source 设为
-**GitHub Actions**。第一次可在 **Actions → Daily Harvard Gazette Radio**
-中点击 **Run workflow** 手动测试，以后每天北京时间 20:30 自动运行，
-23:30 再补查一次延迟到达的邮件。
+PWA 由 Vercel 部署。第一次可在 **Actions → Daily Harvard Gazette Radio**
+中点击 **Run workflow** 手动测试；以后每天北京时间 20:30 自动生成节目，
+23:30 再补查一次延迟到达的邮件，并将节目文件同步到 Supabase Storage。
