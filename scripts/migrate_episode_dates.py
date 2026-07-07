@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -114,6 +115,23 @@ def version_spoken_assets(payload: dict) -> None:
     payload["assetVersionPolicy"] = ASSET_POLICY
 
 
+def payload_episode_stem(payload: dict) -> str | None:
+    """Return the YYYY-MM-DD stem used by generated audio/transcript assets."""
+    candidates: list[str] = []
+    for value in payload.get("audio", {}).values():
+        candidates.append(str(value))
+    for transcript in payload.get("transcript", {}).values():
+        for kind in ("srt", "text"):
+            candidates.append(str(transcript.get(kind, "")))
+    stems = {
+        match.group(1)
+        for value in candidates
+        for match in [re.search(r"audio/(20\d{2}-\d{2}-\d{2})-(?:zh|en)\.", value)]
+        if match
+    }
+    return next(iter(stems)) if len(stems) == 1 else None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -135,8 +153,12 @@ def main() -> int:
         source_path = ROOT / "site" / str(item["path"]).removeprefix("./")
         payload = json.loads(source_path.read_text(encoding="utf-8"))
         old_id = str(item["id"])
+        asset_stem = payload_episode_stem(payload)
         if payload.get("datePolicy") == POLICY:
             new_id = old_id
+            if asset_stem and asset_stem != old_id and payload.get("scriptDatePolicy") != SCRIPT_POLICY:
+                new_id = asset_stem
+                changed += 1
         else:
             new_id = (dt.date.fromisoformat(old_id) + dt.timedelta(days=1)).isoformat()
             changed += 1

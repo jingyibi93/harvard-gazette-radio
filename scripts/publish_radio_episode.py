@@ -181,6 +181,8 @@ def publish(
                 "text": f"./audio/{episode_id}-en.txt",
             },
         },
+        "datePolicy": "next-beijing-morning",
+        "scriptDatePolicy": "next-beijing-morning-spoken-date",
     }
     serialized = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     (episode_dir / f"{episode_id}.json").write_text(serialized, encoding="utf-8")
