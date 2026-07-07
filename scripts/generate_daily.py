@@ -22,11 +22,42 @@ SITE = ROOT / "site"
 SCRIPTS = ROOT / "scripts"
 
 
+def message_time(item: dict[str, object]) -> dt.datetime:
+    value = parsedate_to_datetime(str(item["date"]))
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("America/New_York"))
+    return value
+
+
+def expected_episode_id() -> str:
+    beijing_today = dt.datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    return (beijing_today + dt.timedelta(days=1)).isoformat()
+
+
+def read_archive() -> list[dict[str, object]]:
+    index_path = SITE / "episodes" / "index.json"
+    return json.loads(index_path.read_text(encoding="utf-8")) if index_path.is_file() else []
+
+
+def is_published(item: dict[str, object], identifier: str, archive: list[dict[str, object]]) -> bool:
+    subject = str(item.get("subject", "")).strip()
+    if (SITE / "episodes" / f"{identifier}.json").exists():
+        return True
+    return any(str(entry.get("emailSubject", "")).strip() == subject for entry in archive)
+
+
+def report_no_new_mail(identifier: str, reason: str) -> int:
+    print(f"No new newsletter is available for episode {identifier}.")
+    print(f"Reason: {reason}")
+    print("Keeping the previously published episode. No files were overwritten.")
+    return 0
+
+
 def newest_message() -> dict[str, object]:
     messages = daily_brief.relevant(daily_brief.read_163(3))
     if not messages:
         raise RuntimeError("No Harvard Gazette email arrived in the last three days.")
-    return max(messages, key=lambda item: parsedate_to_datetime(str(item["date"])))
+    return max(messages, key=message_time)
 
 
 def episode_id(item: dict[str, object]) -> str:
@@ -73,28 +104,33 @@ def validate_episode(identifier: str) -> None:
 
 
 def main() -> int:
-    item = newest_message()
-    identifier = episode_id(item)
-    index_path = SITE / "episodes" / "index.json"
-    archive = json.loads(index_path.read_text(encoding="utf-8")) if index_path.is_file() else []
-    duplicate = next(
+    target = expected_episode_id()
+    archive = read_archive()
+    messages = sorted(
+        daily_brief.relevant(daily_brief.read_163(3)),
+        key=message_time,
+        reverse=True,
+    )
+    item = next(
         (
-            entry
-            for entry in archive
-            if str(entry.get("emailSubject", "")).strip() == str(item["subject"]).strip()
+            candidate
+            for candidate in messages
+            if not is_published(candidate, episode_id(candidate), archive)
         ),
         None,
     )
-    if duplicate:
-        print(
-            f"Newsletter is already published as episode {duplicate.get('id')}; "
-            "keeping the published version."
+    if item is None:
+        if (SITE / "episodes" / f"{target}.json").exists():
+            print(f"Episode {target} already exists; keeping the published version.")
+            return 0
+        reason = (
+            "最近三天没有匹配 gazette@u.harvard.edu 的邮件。"
+            if not messages
+            else "最近三天匹配到的 Harvard Gazette 邮件都已经发布过，没有新的未发布邮件。"
         )
-        return 0
-    existing = SITE / "episodes" / f"{identifier}.json"
-    if existing.exists():
-        print(f"Episode {identifier} already exists; keeping the published version.")
-        return 0
+        return report_no_new_mail(target, reason)
+
+    identifier = episode_id(item)
 
     with tempfile.TemporaryDirectory(prefix="harvard-radio-") as temp_dir:
         brief = Path(temp_dir) / f"{identifier}.md"
