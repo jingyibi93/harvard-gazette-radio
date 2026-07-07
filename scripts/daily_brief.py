@@ -16,6 +16,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import urllib.parse
 from email.header import decode_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
@@ -176,6 +177,41 @@ def fetch_page(url: str, timeout: int = 15) -> tuple[str, str]:
     return final_url, parser.text()[:20_000]
 
 
+def clean_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/") or "/", "", ""))
+
+
+def is_source_article(url: str, page: str) -> bool:
+    clean_page = page.strip()
+    if not clean_page:
+        return False
+    if any(
+        marker in clean_page.casefold()
+        for marker in (
+            "request unsuccessful",
+            "incapsula incident",
+            "access denied",
+            "403 forbidden",
+        )
+    ):
+        return False
+    parsed = urllib.parse.urlsplit(url)
+    path = parsed.path.rstrip("/")
+    if parsed.netloc == "news.harvard.edu":
+        return bool(re.fullmatch(r"/gazette/story/\d{4}/\d{2}/[^/]+", path))
+    if parsed.netloc == "www.health.harvard.edu":
+        if any(token in path.casefold() for token in ("newsletter", "subscribe", "topics")):
+            return False
+        return True
+    if parsed.netloc.endswith("harvard.edu"):
+        if any(token in path.casefold() for token in ("event", "events", "section", "series")):
+            return False
+    if any(token in path.casefold() for token in ("unsubscribe", "preferences", "view-email")):
+        return False
+    return bool(page.strip())
+
+
 def relevant(messages: list[dict[str, object]]) -> list[dict[str, object]]:
     needle = os.environ.get("HARVARD_MAIL_QUERY", "gazette@u.harvard.edu").casefold()
     selected = []
@@ -189,7 +225,7 @@ def relevant(messages: list[dict[str, object]]) -> list[dict[str, object]]:
 def source_packet(messages: list[dict[str, object]], fetch_links: bool) -> str:
     sections = []
     for index, item in enumerate(messages, 1):
-        links = [str(link) for link in item["links"]][:10]
+        links = [str(link) for link in item["links"]][:16]
         section = [
             f"EMAIL {index}",
             f"Subject: {item['subject']}",
@@ -200,16 +236,26 @@ def source_packet(messages: list[dict[str, object]], fetch_links: bool) -> str:
             str(item["body"])[:18_000],
         ]
         if fetch_links:
-            for link in links[:6]:
+            seen_final_urls: set[str] = set()
+            fetched_articles = 0
+            for link in links:
                 final_url, page = fetch_page(link)
-                if page:
-                    section.extend(
-                        [
-                            f"\nOriginal email link: {link}",
-                            f"Linked page final URL: {final_url}",
-                            page,
-                        ]
-                    )
+                if not final_url or not is_source_article(final_url, page):
+                    continue
+                normalized = clean_url(final_url)
+                if normalized in seen_final_urls:
+                    continue
+                seen_final_urls.add(normalized)
+                fetched_articles += 1
+                section.extend(
+                    [
+                        f"\nOriginal email link: {link}",
+                        f"Linked page final URL: {final_url}",
+                        page,
+                    ]
+                )
+                if fetched_articles >= 8:
+                    break
         sections.append("\n".join(section))
     return "\n\n---\n\n".join(sections)[:90_000]
 
@@ -253,6 +299,9 @@ def call_agnes(packet: str, broadcast_date: str = "") -> str:
  Do not read URLs aloud. Keep factual claims grounded in the supplied email or linked-page text.
 For every article, use only the matching “Linked page final URL” as its source link.
 Match links by the linked page title and text; never shift, reuse, or guess an adjacent article URL.
+Choose the three stories only from articles whose full linked-page text is included below.
+If the email text mentions a topic but no linked-page material was fetched for it, do not choose
+that topic as one of the three stories.
 The English title must be the headline of that same linked article. Never use the publisher
 name, `Source`, `来源`, or `来源链接` as an English title.
 The English program title must faithfully match the Chinese H1 and cover the same main stories.
