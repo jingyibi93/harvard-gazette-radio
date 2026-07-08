@@ -40,12 +40,12 @@ def spoken(text: str) -> str:
     )
     text = re.sub(r"(?im)^\s*(?:主持人|主播|Host|Presenter)\s*[：:]\s*", "", text)
     text = re.sub(
-        r"(?:我是(?:您的|你们的)?(?:主持人|主播|助手)[^。！？.!?]*[。！？.!?]?)",
+        r"(?:我是(?:您的|你们的)?(?:AI|人工智能)?(?:主持人|主播|助手)[^。！？.!?]*[。！？.!?]?)",
         "",
         text,
     )
     text = re.sub(
-        r"(?:I(?:['’]m| am) (?:your |the )?(?:host|presenter)[^.!?]*[.!?]?)",
+        r"(?:I(?:['’]m| am) (?:your |the )?(?:AI |artificial intelligence )?(?:host|presenter|assistant)[^.!?]*[.!?]?)",
         "",
         text,
         flags=re.IGNORECASE,
