@@ -100,6 +100,95 @@ def public_url(url: str) -> str:
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
 
 
+STOPWORDS_EN = {
+    "about",
+    "after",
+    "again",
+    "could",
+    "from",
+    "have",
+    "into",
+    "more",
+    "that",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "think",
+    "this",
+    "those",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "with",
+    "without",
+    "would",
+}
+
+STOPWORDS_ZH = {
+    "一个",
+    "一种",
+    "以及",
+    "今日",
+    "哈佛",
+    "如何",
+    "我们",
+    "故事",
+    "新闻",
+    "研究",
+    "为何",
+    "背后",
+}
+
+
+def story_keywords(title: str, english_title: str) -> tuple[list[str], list[str]]:
+    zh_chunks = [
+        chunk
+        for chunk in re.split(r"[，、：:；;“”‘’《》\s,.!?()\[\]{}-]+", title)
+        if len(chunk) >= 2 and chunk not in STOPWORDS_ZH
+    ]
+    zh_pairs = [
+        title[index : index + 2]
+        for index in range(max(0, len(title) - 1))
+        if re.match(r"[\u4e00-\u9fff]{2}", title[index : index + 2])
+        and title[index : index + 2] not in STOPWORDS_ZH
+    ]
+    english_words = [
+        word.casefold()
+        for word in re.findall(r"[A-Za-z][A-Za-z'’-]{2,}", english_title)
+        if word.casefold().strip("'’") not in STOPWORDS_EN
+    ]
+    return list(dict.fromkeys(zh_chunks + zh_pairs)), list(dict.fromkeys(english_words))
+
+
+def validate_broadcast_alignment(
+    stories: list[dict[str, str]],
+    zh_script: str,
+    en_script: str,
+) -> None:
+    zh_plain = re.sub(r"\s+", "", zh_script)
+    en_plain = en_script.casefold()
+    for index, story in enumerate(stories, 1):
+        zh_title = story["zh"]
+        en_title = story["en"]
+        zh_keywords, en_keywords = story_keywords(zh_title, en_title)
+        zh_hits = [keyword for keyword in zh_keywords if keyword in zh_plain]
+        en_hits = [keyword for keyword in en_keywords if keyword in en_plain]
+        zh_title_hit = re.sub(r"\s+", "", zh_title) in zh_plain
+        en_title_hit = en_title.casefold() in en_plain
+        if not zh_title_hit and len(zh_hits) < 2:
+            raise ValueError(
+                f"Broadcast does not appear to cover story {index}: {zh_title}"
+            )
+        if not en_title_hit and not en_hits:
+            raise ValueError(
+                f"English broadcast does not appear to cover story {index}: {en_title}"
+            )
+
+
 def edition_date(episode_id: str, fallback: str) -> str:
     try:
         value = dt.date.fromisoformat(episode_id)
@@ -158,6 +247,7 @@ def publish(
         }
         for title, english_title, source, url in story_matches[:3]
     ]
+    validate_broadcast_alignment(stories, zh, en)
     display_date = edition_date(episode_id, date_match.group(1))
     audio_version = re.sub(r"\D", "", episode_id) or re.sub(r"\D", "", display_date) or "latest"
     payload = {

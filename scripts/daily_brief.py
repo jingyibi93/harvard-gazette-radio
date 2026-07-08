@@ -293,9 +293,15 @@ def call_agnes(packet: str, broadcast_date: str = "") -> str:
    exactly formatted as `**来源：** [Publisher](https://matching-final-url)`;
 4. 值得留意: themes and uncertainties;
 5. 中文电台 Broadcast: a warm, natural 4-6 minute Chinese spoken script with opening,
-   transitions, pronunciation-friendly wording, and closing;
+   transitions, pronunciation-friendly wording, and closing. It must cover exactly the
+   same three articles from 文章速读, in the same order. The first story paragraph must
+   mention the first 文章速读 title or its central topic, the second paragraph must mention
+   the second title or central topic, and the third paragraph must mention the third title
+   or central topic. Do not replace any of the three stories with another article from the
+   email;
 6. English Radio Broadcast: a natural 4-6 minute English version written for listening,
-   not a stiff sentence-by-sentence translation.
+   not a stiff sentence-by-sentence translation. It must cover exactly the same three
+   articles from 文章速读, in the same order.
  Do not read URLs aloud. Keep factual claims grounded in the supplied email or linked-page text.
 For every article, use only the matching “Linked page final URL” as its source link.
 Match links by the linked page title and text; never shift, reuse, or guess an adjacent article URL.
@@ -306,6 +312,9 @@ The English title must be the headline of that same linked article. Never use th
 name, `Source`, `来源`, or `来源链接` as an English title.
 The English program title must faithfully match the Chinese H1 and cover the same main stories.
 Never substitute the newsletter email subject or a semicolon-separated keyword list.
+Before writing either Broadcast section, re-check the selected three 文章速读 items. The
+Broadcast sections may summarize and connect them naturally, but must not introduce a fourth
+main article or swap out one of the three selected stories.
 Open directly with the day's subject and a welcoming line. Never say “我是主持人”,
 “我是您的主持人”, “我是助手”, “I am your host”, or introduce a fictional presenter.
 Do not write stage directions for music; music is added during audio production.

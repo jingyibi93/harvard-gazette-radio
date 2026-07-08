@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -106,19 +107,25 @@ def validate_episode(identifier: str) -> None:
 def main() -> int:
     target = expected_episode_id()
     archive = read_archive()
+    regenerate_latest = os.environ.get("REGENERATE_LATEST", "").casefold() == "true"
     messages = sorted(
         daily_brief.relevant(daily_brief.read_163(3)),
         key=message_time,
         reverse=True,
     )
-    item = next(
-        (
-            candidate
-            for candidate in messages
-            if not is_published(candidate, episode_id(candidate), archive)
-        ),
-        None,
-    )
+    if regenerate_latest:
+        item = messages[0] if messages else None
+        if item:
+            print("Regenerating the newest newsletter even if it was already published.")
+    else:
+        item = next(
+            (
+                candidate
+                for candidate in messages
+                if not is_published(candidate, episode_id(candidate), archive)
+            ),
+            None,
+        )
     if item is None:
         if (SITE / "episodes" / f"{target}.json").exists():
             print(f"Episode {target} already exists; keeping the published version.")

@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: false
+      regenerate_latest:
+        description: Rebuild the newest newsletter even if it was already published
+        required: false
+        type: boolean
+        default: false
   schedule:
     # Asia/Shanghai checks: 20:30, 23:30, and next-morning 07:30.
     # Extra runs are safe because generate_daily.py skips already-published newsletters.
@@ -54,6 +59,7 @@ jobs:
           AGNES_BASE_URL: https://apihub.agnes-ai.com/v1
           AGNES_MODEL: agnes-2.0-flash
           HARVARD_MAIL_QUERY: gazette@u.harvard.edu
+          REGENERATE_LATEST: ${{ inputs.regenerate_latest || false }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
