@@ -100,6 +100,18 @@ def public_url(url: str) -> str:
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
 
 
+def title_from_url(url: str) -> str:
+    path = urllib.parse.urlsplit(url).path.strip("/")
+    slug = path.split("/")[-1]
+    words = [word for word in re.split(r"[-_]+", slug) if word]
+    minor = {"a", "an", "and", "at", "for", "from", "in", "of", "on", "or", "the", "to", "with", "without"}
+    titled = [
+        word if index and word in minor else word.capitalize()
+        for index, word in enumerate(words)
+    ]
+    return " ".join(titled)
+
+
 def compact_zh_topic(title: str) -> str:
     title = re.sub(r"\s+", "", title).strip("。！？.!?")
     if "疫苗" in title and ("癌症" in title or "疟疾" in title):
@@ -312,7 +324,10 @@ def publish(
             "The brief does not contain the expected paired program titles, date, and stories."
         )
     if any(not english_title for _, english_title, _, _ in story_matches):
-        raise ValueError("Every story must contain a matching English title.")
+        story_matches = [
+            (title, english_title or title_from_url(url), source, url)
+            for title, english_title, source, url in story_matches
+        ]
 
     stories = [
         {
