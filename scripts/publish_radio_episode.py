@@ -100,6 +100,48 @@ def public_url(url: str) -> str:
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
 
 
+def compact_zh_topic(title: str) -> str:
+    title = re.sub(r"\s+", "", title).strip("。！？.!?")
+    if "疫苗" in title and ("癌症" in title or "疟疾" in title):
+        return "癌症与疟疾疫苗"
+    if "联邦党" in title:
+        return "联邦党协会崛起"
+    if "新药" in title or "鲨鱼坦克" in title:
+        return "新药创业路演"
+    if "公园" in title and "灵感" in title:
+        return "公园里的创意灵感"
+    for delimiter in ("：", ":", "，", "、"):
+        if delimiter in title:
+            pieces = [piece for piece in title.split(delimiter) if piece]
+            title = min(pieces, key=len) if pieces else title
+            break
+    return title[:12]
+
+
+def compact_en_topic(title: str) -> str:
+    normalized = title.strip()
+    lower = normalized.casefold()
+    if "vaccine" in lower and ("cancer" in lower or "malaria" in lower):
+        return "Cancer and malaria vaccines"
+    if "federalist society" in lower:
+        return "Federalist Society rise"
+    if "shark tank" in lower or "guppy tank" in lower:
+        return "new-drug startup pitch"
+    if "park" in lower and "inspiration" in lower:
+        return "park-born inspiration"
+    normalized = re.sub(r"^(?:how|why|what|when)\s+", "", normalized, flags=re.IGNORECASE)
+    return normalized[:42].rstrip(" ,;:")
+
+
+def program_title_from_stories(stories: list[dict[str, str]]) -> dict[str, str]:
+    zh_topics = [compact_zh_topic(story["zh"]) for story in stories]
+    en_topics = [compact_en_topic(story["en"]) for story in stories]
+    return {
+        "zh": "、".join(zh_topics[:-1]) + "与" + zh_topics[-1] if len(zh_topics) > 1 else zh_topics[0],
+        "en": ", ".join(en_topics[:-1]) + ", and " + en_topics[-1] if len(en_topics) > 1 else en_topics[0],
+    }
+
+
 STOPWORDS_EN = {
     "about",
     "after",
@@ -189,6 +231,49 @@ def validate_broadcast_alignment(
             )
 
 
+DRIFT_TERMS_ZH = ("公园", "发明家", "灵感")
+DRIFT_TERMS_EN = ("park", "parks", "inventor", "inventors", "inspiration")
+
+
+def closing_paragraph(text: str) -> str:
+    paragraphs = [paragraph.strip() for paragraph in re.split(r"\n{2,}", text.strip()) if paragraph.strip()]
+    return paragraphs[-1] if paragraphs else ""
+
+
+def contains_unselected_drift(text: str, stories: list[dict[str, str]], terms: tuple[str, ...]) -> bool:
+    selected = " ".join(story["zh"] + " " + story["en"] for story in stories).casefold()
+    lower_text = text.casefold()
+    return any(term.casefold() in lower_text and term.casefold() not in selected for term in terms)
+
+
+def replace_closing(text: str, replacement: str) -> str:
+    paragraphs = [paragraph.strip() for paragraph in re.split(r"\n{2,}", text.strip()) if paragraph.strip()]
+    if not paragraphs:
+        return replacement
+    paragraphs[-1] = replacement
+    return "\n\n".join(paragraphs)
+
+
+def clean_broadcast_closing(
+    stories: list[dict[str, str]],
+    zh_script: str,
+    en_script: str,
+) -> tuple[str, str]:
+    zh_closing = closing_paragraph(zh_script)
+    en_closing = closing_paragraph(en_script)
+    if contains_unselected_drift(zh_closing, stories, DRIFT_TERMS_ZH):
+        zh_script = replace_closing(
+            zh_script,
+            "以上就是今天早间新闻的全部内容。感谢收听，祝您拥有清醒、充实的一天。早安！",
+        )
+    if contains_unselected_drift(en_closing, stories, DRIFT_TERMS_EN):
+        en_script = replace_closing(
+            en_script,
+            "That concludes this morning’s briefing. Thank you for listening, and have a thoughtful day.",
+        )
+    return zh_script, en_script
+
+
 def edition_date(episode_id: str, fallback: str) -> str:
     try:
         value = dt.date.fromisoformat(episode_id)
@@ -229,15 +314,6 @@ def publish(
     if any(not english_title for _, english_title, _, _ in story_matches):
         raise ValueError("Every story must contain a matching English title.")
 
-    zh = spoken(section(markdown, "中文电台 Broadcast", "English Radio Broadcast"))
-    en = spoken(section(markdown, "English Radio Broadcast"))
-    episode_dir = radio_dir / "episodes"
-    audio_dir = radio_dir / "audio"
-    episode_dir.mkdir(parents=True, exist_ok=True)
-    audio_dir.mkdir(parents=True, exist_ok=True)
-    (audio_dir / f"{episode_id}-zh.txt").write_text(zh + "\n", encoding="utf-8")
-    (audio_dir / f"{episode_id}-en.txt").write_text(en + "\n", encoding="utf-8")
-
     stories = [
         {
             "zh": title,
@@ -247,15 +323,21 @@ def publish(
         }
         for title, english_title, source, url in story_matches[:3]
     ]
+    zh = spoken(section(markdown, "中文电台 Broadcast", "English Radio Broadcast"))
+    en = spoken(section(markdown, "English Radio Broadcast"))
+    zh, en = clean_broadcast_closing(stories, zh, en)
     validate_broadcast_alignment(stories, zh, en)
+    episode_dir = radio_dir / "episodes"
+    audio_dir = radio_dir / "audio"
+    episode_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    (audio_dir / f"{episode_id}-zh.txt").write_text(zh + "\n", encoding="utf-8")
+    (audio_dir / f"{episode_id}-en.txt").write_text(en + "\n", encoding="utf-8")
     display_date = edition_date(episode_id, date_match.group(1))
     audio_version = re.sub(r"\D", "", episode_id) or re.sub(r"\D", "", display_date) or "latest"
     payload = {
         "date": display_date,
-        "title": {
-            "zh": title_match.group(1).replace("哈佛公报：", ""),
-            "en": english_program_title_match.group(1).strip(),
-        },
+        "title": program_title_from_stories(stories),
         "stories": stories,
         "audio": {
             "zh": f"./audio/{episode_id}-zh.m4a?v={audio_version}",

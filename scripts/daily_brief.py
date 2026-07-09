@@ -279,7 +279,10 @@ def call_agnes(packet: str, broadcast_date: str = "") -> str:
         else ""
     )
     prompt = """Turn the supplied Harvard Gazette newsletter and linked article material into Markdown with:
-1. a short, topic-driven Chinese H1 title (not merely a date or “special edition”),
+1. a short, topic-driven Chinese H1 title (not merely a date or “special edition”).
+   The title must summarize the three selected stories only. Do not add generic program
+   framing such as “哈佛晨间”, “哈佛晨报”, “哈佛今日聚焦”, “Harvard Morning Briefing”,
+   or “Harvard Focus”;
    followed by a natural English translation exactly formatted as
    `**English program title:** Matching English title`, then a line exactly
    formatted as `**日期：** YYYY年M月D日`;
@@ -314,7 +317,9 @@ The English program title must faithfully match the Chinese H1 and cover the sam
 Never substitute the newsletter email subject or a semicolon-separated keyword list.
 Before writing either Broadcast section, re-check the selected three 文章速读 items. The
 Broadcast sections may summarize and connect them naturally, but must not introduce a fourth
-main article or swap out one of the three selected stories.
+main article or swap out one of the three selected stories. The opening and closing must also
+refer only to these three selected stories; do not use a metaphor, blessing, or summary drawn
+from another newsletter article that is not selected in 文章速读.
 Open directly with the day's subject and a welcoming line. Never say “我是主持人”,
 “我是您的主持人”, “我是助手”, “我是您的AI助手”, “I am your host”, “I am your AI assistant”,
 or introduce a fictional presenter.
