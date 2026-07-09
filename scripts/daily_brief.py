@@ -222,6 +222,10 @@ def relevant(messages: list[dict[str, object]]) -> list[dict[str, object]]:
     return selected
 
 
+ARTICLE_PAGE_LIMIT = 14_000
+MAX_ARTICLES_PER_EMAIL = 3
+
+
 def source_packet(messages: list[dict[str, object]], fetch_links: bool) -> str:
     sections = []
     for index, item in enumerate(messages, 1):
@@ -251,10 +255,10 @@ def source_packet(messages: list[dict[str, object]], fetch_links: bool) -> str:
                     [
                         f"\nOriginal email link: {link}",
                         f"Linked page final URL: {final_url}",
-                        page,
+                        page[:ARTICLE_PAGE_LIMIT],
                     ]
                 )
-                if fetched_articles >= 8:
+                if fetched_articles >= MAX_ARTICLES_PER_EMAIL:
                     break
         sections.append("\n".join(section))
     return "\n\n---\n\n".join(sections)[:90_000]
@@ -311,6 +315,8 @@ Match links by the linked page title and text; never shift, reuse, or guess an a
 Choose the three stories only from articles whose full linked-page text is included below.
 If the email text mentions a topic but no linked-page material was fetched for it, do not choose
 that topic as one of the three stories.
+If exactly three `Linked page final URL` article blocks are included, use all three of them,
+in their displayed order, as the three 文章速读 items and the three broadcast segments.
 The English title must be the headline of that same linked article. Never use the publisher
 name, `Source`, `来源`, or `来源链接` as an English title.
 The English program title must faithfully match the Chinese H1 and cover the same main stories.
